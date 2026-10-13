@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "EV Slot Exchange"
+description = "A consumer EV charging web app for finding charging stations, booking time slots, and releasing or claiming slots through a trusted exchange marketplace."
+version = "1.0.0"
+id = "artifacts/ev-slot-exchange"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19877
+
+[services.development]
+run = "pnpm --filter @workspace/ev-slot-exchange run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ev-slot-exchange", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ev-slot-exchange/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19877"
+BASE_PATH = "/"
