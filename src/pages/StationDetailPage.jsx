@@ -148,8 +148,18 @@ function StationDetail({ station, toast }) {
           <Button
             className="mt-5 w-full py-3.5"
             onClick={() => {
+              const charger = station.chargers[selected];
+
+              if (!charger || charger.status !== "Available") {
+                toast("Please select an available charger");
+                return;
+              }
+
               toast("Charger selected — choose a time next");
-              navigate(`/book?station=${station.id}`);
+
+              navigate(
+                `/book?station=${encodeURIComponent(station.id)}&charger=${selected}`,
+              );
             }}
             data-testid="button-reserve-charger"
           >

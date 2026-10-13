@@ -18,29 +18,93 @@ const money = (n) => `₹${Number(n ?? 0).toLocaleString("en-IN")}`;
 function BookPage({ stations = [], add, toast }) {
   const [, navigate] = useLocation();
 
-  const stationId = new URLSearchParams(window.location.search).get("station");
+  // const stationId = new URLSearchParams(window.location.search).get("station");
+
+  // const station =
+  //   stations.find((s) => s.id === stationId) ?? stations[0] ?? null;
+
+  // // All hooks must run before conditional returns.
+  // const [step, setStep] = useState(1);
+  // const [date, setDate] = useState("Tue, 18 Jun");
+  // const [slot, setSlot] = useState("");
+  // const [paid, setPaid] = useState(false);
+  // const [bookingId, setBookingId] = useState("");
+
+  // // Select a valid time slot whenever the station changes.
+
+  // useEffect(() => {
+  //   setSlot(station?.availableSlots?.[1] ?? station?.availableSlots?.[0] ?? "");
+  // }, [station?.id, station?.availableSlots]);
+
+  // const dates = ["Tue, 18 Jun", "Wed, 19 Jun", "Thu, 20 Jun"];
+
+  // const total = (Number(station?.pricePerKwh) || 0) * 22 + 35;
+  // const charger = station?.chargers?.[0];
+  // const slots = station?.availableSlots ?? [];
+
+  const searchParams = new URLSearchParams(window.location.search);
+
+  const stationId = searchParams.get("station");
+  const requestedChargerIndex = Number(searchParams.get("charger") ?? 0);
 
   const station =
-    stations.find((s) => s.id === stationId) ?? stations[0] ?? null;
+    stations.find((s) => String(s.id) === stationId) ?? stations[0] ?? null;
+
+  // Generate the next three dates dynamically.
+  const getDateOptions = () => {
+    return Array.from({ length: 3 }, (_, index) => {
+      const currentDate = new Date();
+
+      currentDate.setHours(0, 0, 0, 0);
+      currentDate.setDate(currentDate.getDate() + index);
+
+      const value = [
+        currentDate.getFullYear(),
+        String(currentDate.getMonth() + 1).padStart(2, "0"),
+        String(currentDate.getDate()).padStart(2, "0"),
+      ].join("-");
+
+      const label = currentDate.toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      });
+
+      const dayLabel =
+        index === 0 ? "Today" : index === 1 ? "Tomorrow" : "Day after";
+
+      return {
+        value,
+        label,
+        dayLabel,
+      };
+    });
+  };
+
+  const dates = getDateOptions();
 
   // All hooks must run before conditional returns.
   const [step, setStep] = useState(1);
-  const [date, setDate] = useState("Tue, 18 Jun");
+  const [date, setDate] = useState(() => getDateOptions()[0].value);
   const [slot, setSlot] = useState("");
   const [paid, setPaid] = useState(false);
   const [bookingId, setBookingId] = useState("");
 
-  // Select a valid time slot whenever the station changes.
+  // Use the selected charger, falling back to the first available charger.
+  const charger =
+    station?.chargers?.[requestedChargerIndex]?.status === "Available"
+      ? station.chargers[requestedChargerIndex]
+      : (station?.chargers?.find((item) => item.status === "Available") ??
+        station?.chargers?.[0]);
 
+  const slots = station?.availableSlots ?? [];
+
+  const total = (Number(station?.pricePerKwh) || 0) * 22 + 35;
+
+  // Select a valid time slot whenever the station changes.
   useEffect(() => {
     setSlot(station?.availableSlots?.[1] ?? station?.availableSlots?.[0] ?? "");
   }, [station?.id, station?.availableSlots]);
-
-  const dates = ["Tue, 18 Jun", "Wed, 19 Jun", "Thu, 20 Jun"];
-
-  const total = (Number(station?.pricePerKwh) || 0) * 22 + 35;
-  const charger = station?.chargers?.[0];
-  const slots = station?.availableSlots ?? [];
 
   // Safe conditional returns: all hooks have already run.
   if (!station) {
@@ -114,7 +178,7 @@ function BookPage({ stations = [], add, toast }) {
               <b className="block text-xs text-[hsl(var(--muted-foreground))]">
                 Date & time
               </b>
-              {date}
+              {dates.find((day) => day.value === date)?.label ?? date}
               <br />
               {slot}
             </span>
@@ -161,6 +225,7 @@ function BookPage({ stations = [], add, toast }) {
       station: station.name,
       stationId: station.id,
       charger: `${charger.type} · ${charger.connector ?? "Standard connector"}`,
+      chargerIndex: station.chargers.indexOf(charger),
       date,
       time: slot,
       cost: total,
@@ -244,7 +309,7 @@ function BookPage({ stations = [], add, toast }) {
                 <p className="mb-3 mt-7 text-sm font-bold">Select a day</p>
 
                 <div className="grid grid-cols-3 gap-2">
-                  {dates.map((day, index) => (
+                  {/* /* {dates.map((day, index) => (
                     <button
                       key={day}
                       type="button"
@@ -265,6 +330,26 @@ function BookPage({ stations = [], add, toast }) {
                       </span>
 
                       <b className="mt-1 block text-sm">{day.split(", ")[1]}</b>
+                    </button>
+                  ))} */}
+
+                  {dates.map((day, index) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => setDate(day.value)}
+                      className={`rounded-xl border p-3 text-left ${
+                        date === day.value
+                          ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/.08)]"
+                          : ""
+                      }`}
+                      data-testid={`button-date-${index}`}
+                    >
+                      <span className="block text-xs text-[hsl(var(--muted-foreground))]">
+                        {day.dayLabel}
+                      </span>
+
+                      <b className="mt-1 block text-sm">{day.label}</b>
                     </button>
                   ))}
                 </div>
@@ -374,13 +459,25 @@ function BookPage({ stations = [], add, toast }) {
                   </div>
                 </div>
 
-                <div className="mt-6 flex items-center gap-3 rounded-xl border p-4">
+                {/* <div className="mt-6 flex items-center gap-3 rounded-xl border p-4">
                   <CreditCard size={19} />
 
                   <div className="text-sm">
                     <b>HDFC Visa ending 2846</b>
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">
                       Protected payment
+                    </p>
+                  </div>
+                </div> */}
+
+                <div className="mt-6 flex items-center gap-3 rounded-xl border p-4">
+                  <CreditCard size={19} />
+
+                  <div className="text-sm">
+                    <b>Demo payment</b>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                      No real payment will be processed. Payment gateway
+                      integration will be added later.
                     </p>
                   </div>
                 </div>
@@ -416,7 +513,7 @@ function BookPage({ stations = [], add, toast }) {
                 />
 
                 <span>
-                  {date}
+                  {dates.find((day) => day.value === date)?.label ?? date}
                   <br />
                   {slot || "Select a time slot"}
                 </span>
